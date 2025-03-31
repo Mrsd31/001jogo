@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astro Escape Sid_Tech_Web</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #game-title {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            font-size: 48px;
+            text-shadow: 0 0 10px #00f, 0 0 20px #00f;
+            z-index: 10;
+        }
+        
+        #game-canvas {
+            display: block;
+            background-color: #000033;
+        }
+        
+        #score-display {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            color: #fff;
+            font-size: 24px;
+            z-index: 10;
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            color: white;
+        }
+        
+        #start-button {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 24px;
+            background-color: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        #start-button:hover {
+            background-color: #0055dd;
+        }
+        
+        .instructions {
+            text-align: center;
+            margin-bottom: 30px;
+            max-width: 500px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1 id="game-title">ASTRO ESCAPE-Sid_Tech_Web</h1>
+        <div id="score-display">Pontos: 0</div>
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="start-screen">
+            <h1>ASTRO ESCAPE Sid_Tech_Web</h1>
+            <div class="instructions">
+                <p>Use as teclas SETAS (← →) para mover a nave e desviar dos meteoros!</p>
+                <p>Quanto mais tempo você sobreviver, mais pontos ganha.</p>
+            </div>
+            <button id="start-button">INICIAR JOGO</button>
+        </div>
+    </div>
+
+    <script>
+        // Configurações do jogo
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('start-screen');
+        const startButton = document.getElementById('start-button');
+        const scoreDisplay = document.getElementById('score-display');
+        
+        // Ajustar tamanho do canvas
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        // Variáveis do jogo
+        let gameRunning = false;
+        let score = 0;
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 60,
+            width: 50,
+            height: 50,
+            speed: 8
+        };
+        
+        let meteors = [];
+        let keys = {
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+        
+        // Imagens (simples com retângulos por enquanto)
+        function drawPlayer() {
+            ctx.fillStyle = '#0066ff';
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(player.x - player.width/2, player.y + player.height);
+            ctx.lineTo(player.x + player.width/2, player.y + player.height);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Chamas do motor
+            ctx.fillStyle = '#ff6600';
+            ctx.beginPath();
+            ctx.moveTo(player.x - player.width/4, player.y + player.height);
+            ctx.lineTo(player.x, player.y + player.height + 15);
+            ctx.lineTo(player.x + player.width/4, player.y + player.height);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function drawMeteor(meteor) {
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(meteor.x, meteor.y, meteor.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function createMeteor() {
+            const radius = Math.random() * 30 + 10;
+            const x = Math.random() * (canvas.width - radius * 2) + radius;
+            
+            meteors.push({
+                x: x,
+                y: -radius,
+                radius: radius,
+                speed: Math.random() * 3 + 2
+            });
+        }
+        
+        function update() {
+            // Movimento do jogador
+            if (keys.ArrowLeft && player.x > player.width/2) {
+                player.x -= player.speed;
+            }
+            if (keys.ArrowRight && player.x < canvas.width - player.width/2) {
+                player.x += player.speed;
+            }
+            
+            // Atualizar meteoros
+            for (let i = meteors.length - 1; i >= 0; i--) {
+                meteors[i].y += meteors[i].speed;
+                
+                // Verificar colisão
+                const dx = player.x - meteors[i].x;
+                const dy = player.y - meteors[i].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < meteors[i].radius + player.width/2) {
+                    gameOver();
+                    return;
+                }
+                
+                // Remover meteoros que saíram da tela
+                if (meteors[i].y > canvas.height + meteors[i].radius) {
+                    meteors.splice(i, 1);
+                    score += 10;
+                    scoreDisplay.textContent = `Pontos: ${score}`;
+                }
+            }
+            
+            // Adicionar novos meteoros
+            if (Math.random() < 0.02) {
+                createMeteor();
+            }
+        }
+        
+        function render() {
+            // Limpar tela
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenhar estrelas de fundo
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 100; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 2;
+                ctx.fillRect(x, y, size, size);
+            }
+            
+            // Desenhar jogador e meteoros
+            drawPlayer();
+            meteors.forEach(drawMeteor);
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            update();
+            render();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            startScreen.style.display = 'flex';
+            startButton.textContent = 'JOGAR NOVAMENTE';
+        }
+        
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            scoreDisplay.textContent = `Pontos: ${score}`;
+            meteors = [];
+            player.x = canvas.width / 2;
+            startScreen.style.display = 'none';
+            gameLoop();
+        }
+        
+        // Event listeners
+        startButton.addEventListener('click', startGame);
+        
+        window.addEventListener('keydown', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = true;
+                e.preventDefault();
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = false;
+                e.preventDefault();
+            }
+        });
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 60;
+        });
+    </script>
+</body>
+</html>
